@@ -8,7 +8,11 @@ Given a list of urls and a regex search term, decide whether each url content ma
 3. Results are writtenout to a file `results.txt`.
 
 ### How to run
+```bash
+./gradlew jar
 
+java -jar build/libs/website_searcher-1.0.jar
+```
 
 ### Things to improve
 1. Use logging tools like [Slf4j](https://www.slf4j.org/) to replace standard output and support different log levels
