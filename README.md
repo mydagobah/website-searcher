@@ -11,7 +11,7 @@ Given a list of urls and a regex search term, decide whether each url content ma
 
 
 ### Things to improve
-1. Use logging tools like [Slf4j](https://www.slf4j.org/) to replace standard output
+1. Use logging tools like [Slf4j](https://www.slf4j.org/) to replace standard output and support different log levels
 2. Use dependency injection like [Google Guice](https://github.com/google/guice/wiki/Motivation) to replace `new` usages;
 3. Support more search terms
 4. Support more encoding types
