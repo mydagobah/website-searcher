@@ -1,13 +1,11 @@
 package com.website.searcher;
 
 import com.website.searcher.models.MatchResult;
-import com.website.searcher.utils.FileUtil;
-import com.website.searcher.utils.UrlUtil;
+import com.website.searcher.utils.Util;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,13 +18,12 @@ public class Svc {
     private static final int BATCH_SIZE = 20;
 
     public static void main(String[] args) {
-        String expr = ".*about.*";
-        Pattern pattern = Pattern.compile(expr, Pattern.CASE_INSENSITIVE);
+        String search = args.length > 0 ? args[0] : ".*about.*";
+        Pattern pattern = Pattern.compile(search, Pattern.CASE_INSENSITIVE);
         Predicate<String> criteria = content -> pattern.matcher(content).matches();
 
-        FileUtil fileUtil = new FileUtil();
-        UrlUtil urlUtil = new UrlUtil();
-        WebSearchProcessor processor = new WebSearchProcessor(urlUtil, fileUtil);
+        Util util = new Util();
+        WebSearchProcessor processor = new WebSearchProcessor(util);
 
         List<String> urls;
         try {
@@ -35,42 +32,36 @@ public class Svc {
             System.out.println(String.format("Exception reading urls from %s: %s", INPUT_URL, e.getMessage()));
             return;
         }
-        List<List<String>> batches = partition(urls);
 
-        System.out.println(String.format("Start website search. Search term: \"%s\", total urls: %d", expr, urls.size()));
+        List<List<String>> batches = util.partition(urls, BATCH_SIZE);
+
+        System.out.println(String.format("Start website search. Search term: \"%s\", total urls: %d, total batches: %d",
+                search, urls.size(), batches.size()));
 
         Map<MatchResult.Result, Integer> report = new HashMap<>();
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE))) {
-            writer.write("url, result, error_message\n");
+            writer.write("url, match_result, error_message\n");
 
             for (int i = 0; i < batches.size(); i++) {
-                System.out.println("Processing batch " + (i + 1));
+                System.out.println(String.format("Processing batch %d", i + 1));
 
-                Map<MatchResult.Result, Integer> summary = processor.process(batches.get(i), criteria, writer);
+                try {
+                    List<MatchResult> results = processor.process(batches.get(i), criteria);
 
-                for (MatchResult.Result key : summary.keySet()) {
-                    report.put(key, report.getOrDefault(key, 0) + summary.get(key));
+                    for (MatchResult result : results) {
+                        util.writeLine(writer, result);
+                        report.put(result.getResult(), report.getOrDefault(result.getResult(), 0) + 1);
+                    }
+                } catch (IOException e) {
+                    System.out.println(String.format("Exception processing batch %d: %s", i + 1, e.getMessage()));
                 }
             }
             writer.flush();
             printReport(report);
         } catch (IOException e) {
-            System.out.println(String.format("Exception opening output file %s: %s", OUTPUT_FILE, e.getMessage()));
+            System.out.println(String.format("Exception writing into output file %s: %s", OUTPUT_FILE, e.getMessage()));
         }
-    }
-
-    private static List<List<String>> partition(List<String> urls) {
-        List<List<String>> batches = new ArrayList<>();
-
-        for (int i = 0; i < urls.size();) {
-            List<String> batch = new ArrayList<>();
-            for (int j = 0; j < BATCH_SIZE && i < urls.size(); ++j, ++i) {
-                batch.add(urls.get(i));
-            }
-            batches.add(batch);
-        }
-        return batches;
     }
 
     private static void printReport(Map<MatchResult.Result, Integer> report) {
