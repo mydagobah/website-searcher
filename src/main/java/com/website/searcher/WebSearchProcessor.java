@@ -7,8 +7,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -26,16 +26,34 @@ class WebSearchProcessor {
      * Match page content from each url against given criteria in parallel
      * @param urls - a list of urls to process
      * @param criteria - a predicate to determine if a page matches or not
+     * @param waitTime - how long to wait for the threads to finish, in milliseconds
      * @return - a list of {@link MatchResult}
      */
-    public List<MatchResult> process(List<String> urls, Predicate<String> criteria) {
-        List<CompletableFuture<MatchResult>> futures = urls.stream()
-            .map(urlStr -> CompletableFuture.supplyAsync(() -> processUrl(urlStr, criteria)))
-            .collect(Collectors.toList());
+    public List<MatchResult> process(List<String> urls, Predicate<String> criteria, int waitTime) throws InterruptedException {
+        List<MatchTask> tasks = new ArrayList<>(urls.size());
+        List<Thread> threads = new ArrayList<>(urls.size());
 
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenApply(future -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
-                .join();
+        // kick off concurrent tasks
+        urls.forEach(url -> {
+            MatchTask task = new MatchTask(url, criteria);
+            tasks.add(task);
+            Thread thread = new Thread(task);
+            threads.add(thread);
+            thread.start();
+        });
+
+        // join all tasks
+        for (Thread thread : threads) {
+            thread.join(waitTime);
+            if (thread.isAlive()) {
+                thread.interrupt();
+            }
+        }
+
+        return tasks.stream()
+                .filter(task -> task.getMatchResult() != null)
+                .map(MatchTask::getMatchResult)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -46,6 +64,7 @@ class WebSearchProcessor {
      * @return - {@link MatchResult}
      */
     private MatchResult processUrl(String urlStr, Predicate<String> criteria) {
+        System.out.println("\tprocessing " + urlStr);
         try {
             URL url = new URL(HTTPS_PROTOCOL + urlStr);
             if (matchUrl(url, criteria)) {
@@ -94,4 +113,26 @@ class WebSearchProcessor {
             conn.disconnect();
         }
     }
+
+
+    class MatchTask implements Runnable {
+        private String url;
+        private Predicate<String> criteria;
+        private MatchResult matchResult;
+
+        public MatchTask(String url, Predicate<String> criteria) {
+            this.url = url;
+            this.criteria = criteria;
+        }
+
+        @Override
+        public void run() {
+            matchResult = processUrl(url, criteria);
+        }
+
+        public MatchResult getMatchResult() {
+            return matchResult;
+        }
+    }
 }
+
