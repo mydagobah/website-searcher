@@ -16,6 +16,7 @@ public class Svc {
     private static final String INPUT_URL = "https://s3.amazonaws.com/fieldlens-public/urls.txt";
     private static final String OUTPUT_FILE = "results.txt";
     private static final int BATCH_SIZE = 20;
+    private static final int THREAD_TIMEOUT_MILLISECOND = 20000; // could make this configurable
 
     public static void main(String[] args) {
         String search = args.length > 0 ? args[0] : ".*about.*";
@@ -47,13 +48,13 @@ public class Svc {
                 System.out.println(String.format("Processing batch %d", i + 1));
 
                 try {
-                    List<MatchResult> results = processor.process(batches.get(i), criteria);
+                    List<MatchResult> results = processor.process(batches.get(i), criteria, THREAD_TIMEOUT_MILLISECOND);
 
                     for (MatchResult result : results) {
                         util.writeLine(writer, result);
                         report.put(result.getResult(), report.getOrDefault(result.getResult(), 0) + 1);
                     }
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException e) {
                     System.out.println(String.format("Exception processing batch %d: %s", i + 1, e.getMessage()));
                 }
             }

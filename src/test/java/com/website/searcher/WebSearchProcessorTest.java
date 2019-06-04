@@ -53,7 +53,7 @@ public class WebSearchProcessorTest {
         when(util.connectUrl(any(URL.class))).thenReturn(connection).thenReturn(connection);
         when(util.convertInputStream(encoding, inputStream)).thenReturn(bufferedReader1).thenReturn(bufferedReader2);
 
-        List<MatchResult> results = processor.process(urls, predicate);
+        List<MatchResult> results = processor.process(urls, predicate, 10000);
         assertThat(results.size(), is(2));
         List<MatchResult.Result> matchResults = results.stream().map(MatchResult::getResult).collect(Collectors.toList());
         assertThat(matchResults, hasItems(MatchResult.Result.MATCH, MatchResult.Result.NOT_MATCH));
@@ -78,7 +78,7 @@ public class WebSearchProcessorTest {
         when(util.connectUrl(any(URL.class))).thenThrow(IOException.class).thenReturn(connection);
         when(util.convertInputStream(encoding, inputStream)).thenReturn(bufferedReader);
 
-        List<MatchResult> results = processor.process(urls, predicate);
+        List<MatchResult> results = processor.process(urls, predicate, 10000);
         assertThat(results.size(), is(1));
         assertThat(results.get(0).getResult(), is(MatchResult.Result.NOT_MATCH));
         verify(util, times(2)).connectUrl(any());
@@ -92,7 +92,7 @@ public class WebSearchProcessorTest {
 
         when(util.connectUrl(any(URL.class))).thenThrow(IOException.class).thenThrow(IOException.class);
 
-        List<MatchResult> results = processor.process(urls, predicate);
+        List<MatchResult> results = processor.process(urls, predicate, 10000);
         assertThat(results.size(), is(1));
         assertThat(results.get(0).getResult(), is(MatchResult.Result.EXCEPTION));
         verify(util, times(2)).connectUrl(any());

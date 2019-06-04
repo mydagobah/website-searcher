@@ -12,6 +12,8 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
 public class Util {
+    private static final int CONNECTION_TIMEOUT = 5000; // could make this configurable
+    private static final int READ_TIMEOUT = 5000; // could make this configurable
     private static final String ACCEPT_ENCODINGS = "gzip, deflate";
     private static final String SEP = ",";
 
@@ -90,7 +92,8 @@ public class Util {
     public HttpURLConnection connectUrl(URL url) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setInstanceFollowRedirects(true);
-        conn.setConnectTimeout(10_000); // 10 seconds
+        conn.setConnectTimeout(CONNECTION_TIMEOUT);
+        conn.setReadTimeout(READ_TIMEOUT);
         conn.setRequestProperty("Accept-Encoding", ACCEPT_ENCODINGS);
         return conn;
     }
