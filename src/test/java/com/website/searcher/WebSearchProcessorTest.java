@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -13,10 +14,9 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.hasItems;
 import static org.mockito.ArgumentMatchers.any;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -37,6 +37,7 @@ public class WebSearchProcessorTest {
         String encoding = "gzip";
         List<String> urls = Arrays.asList("google.com", "yahoo.com");
         Predicate<String> predicate = mock(Predicate.class) ;
+        BufferedWriter writer = mock(BufferedWriter.class);
 
         InputStream inputStream = mock(InputStream.class);
         BufferedReader bufferedReader1 = mock(BufferedReader.class);
@@ -53,10 +54,10 @@ public class WebSearchProcessorTest {
         when(util.connectUrl(any(URL.class))).thenReturn(connection).thenReturn(connection);
         when(util.convertInputStream(encoding, inputStream)).thenReturn(bufferedReader1).thenReturn(bufferedReader2);
 
-        List<MatchResult> results = processor.process(urls, predicate);
+        Map<MatchResult.Result, Integer> results = processor.process(urls, predicate, writer, 2);
         assertThat(results.size(), is(2));
-        List<MatchResult.Result> matchResults = results.stream().map(MatchResult::getResult).collect(Collectors.toList());
-        assertThat(matchResults, hasItems(MatchResult.Result.MATCH, MatchResult.Result.NOT_MATCH));
+        assertThat(results.get(MatchResult.Result.MATCH), is(1));
+        assertThat(results.get(MatchResult.Result.NOT_MATCH), is(1));
         verify(connection, times(2)).disconnect();
     }
 
@@ -65,6 +66,7 @@ public class WebSearchProcessorTest {
         String encoding = "gzip";
         List<String> urls = Arrays.asList("google.com");
         Predicate<String> predicate = mock(Predicate.class) ;
+        BufferedWriter writer = mock(BufferedWriter.class);
 
         InputStream inputStream = mock(InputStream.class);
         BufferedReader bufferedReader = mock(BufferedReader.class);
@@ -78,9 +80,9 @@ public class WebSearchProcessorTest {
         when(util.connectUrl(any(URL.class))).thenThrow(IOException.class).thenReturn(connection);
         when(util.convertInputStream(encoding, inputStream)).thenReturn(bufferedReader);
 
-        List<MatchResult> results = processor.process(urls, predicate);
+        Map<MatchResult.Result, Integer> results = processor.process(urls, predicate, writer, 2);
         assertThat(results.size(), is(1));
-        assertThat(results.get(0).getResult(), is(MatchResult.Result.NOT_MATCH));
+        assertThat(results.get(MatchResult.Result.NOT_MATCH), is(1));
         verify(util, times(2)).connectUrl(any());
         verify(connection, times(1)).disconnect();
     }
@@ -89,12 +91,13 @@ public class WebSearchProcessorTest {
     public void test_process_exception() throws Exception {
         List<String> urls = Arrays.asList("abcde.com");
         Predicate<String> predicate = mock(Predicate.class) ;
+        BufferedWriter writer = mock(BufferedWriter.class);
 
         when(util.connectUrl(any(URL.class))).thenThrow(IOException.class).thenThrow(IOException.class);
 
-        List<MatchResult> results = processor.process(urls, predicate);
+        Map<MatchResult.Result, Integer> results = processor.process(urls, predicate, writer, 2);
         assertThat(results.size(), is(1));
-        assertThat(results.get(0).getResult(), is(MatchResult.Result.EXCEPTION));
+        assertThat(results.get(MatchResult.Result.EXCEPTION), is(1));
         verify(util, times(2)).connectUrl(any());
     }
 
